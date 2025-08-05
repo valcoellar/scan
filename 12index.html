@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interfaz de Captura Móvil</title>
+    <!-- Librería para escaneo QR/Barcode -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #c5cae9 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-radius: 0 0 24px 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .user-icon {
+            background: #2196f3;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .user-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2196f3;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px;
+            text-align: center;
+        }
+        .content {
+            flex: 1;
+            padding: 0 16px 24px;
+        }
+        .input-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .input-row {
+            display: flex;
+            align-items: end;
+            gap: 12px;
+        }
+        .input-group {
+            flex: 1;
+        }
+        .input-group.quantity {
+            flex: 0 0 80px;
+        }
+        .input-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #2196f3;
+        }
+        .input-field.quantity {
+            text-align: center;
+        }
+        .add-button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .add-button:hover {
+            background: #1976d2;
+        }
+        .add-button:active {
+            transform: scale(0.95);
+        }
+        .add-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .arrow-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* Botón de escaneo */
+        .scan-button {
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .scan-button:hover {
+            background: #d32f2f;
+        }
+        .scan-button:active {
+            transform: scale(0.95);
+        }
+
+        .captured-section {
+            margin-bottom: 100px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding: 0 8px;
+        }
+        .items-list {
+            max-height: 400px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .item-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 16px;
+            border-left: 4px solid #4caf50;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .item-content {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        .item-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .item-number {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .item-cb {
+            display: flex;
+            flex-direction: column;
+        }
+        .item-cb-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .item-cb-value {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+            line-height: 1.3;
+        }
+        .item-right {
+            margin-left: auto;
+            text-align: right;
+        }
+        .item-quantity-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .item-quantity-value {
+            font-weight: bold;
+            color: #2196f3;
+            font-size: 18px;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 16px;
+        }
+        .send-button {
+            width: 100%;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 16px 24px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+        }
+        .send-button:hover {
+            background: #d32f2f;
+        }
+        .send-button:active {
+            transform: scale(0.98);
+        }
+        .send-icon {
+            width: 20px;
+            height: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        /* Scrollbar styling */
+        .items-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .items-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 2px;
+        }
+        .items-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="user-info">
+            <div class="user-icon">👤</div>
+            <div class="user-name" id="userName">Usuario</div>
+        </div>
+    </div>
+    <div id="loadingSection" class="loading">
+        <div class="loading-spinner"></div>
+        <div>Cargando datos...</div>
+    </div>
+    <div id="errorSection" class="error hidden">
+        Error al cargar los datos. Por favor, recarga la página.
+    </div>
+    <div class="content" id="mainContent" style="display: none;">
+        <div class="input-section">
+            <div class="input-row">
+                <div class="input-group">
+                    <label class="input-label" for="cbInput">Código CB</label>
+                    <input type="text" id="cbInput" class="input-field" placeholder="Ingresa CB">
+                </div>
+                <!-- Botón de escaneo QR/Barcode -->
+                <button class="scan-button" id="scanButton">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9h-3v3h-2v-3H8V8h3V5h2v3h3v2z"/>
+                    </svg>
+                </button>
+                <div class="input-group quantity">
+                    <label class="input-label" for="quantityInput">Cantidad</label>
+                    <input type="number" id="quantityInput" class="input-field quantity" placeholder="0000" maxlength="4">
+                </div>
+                <button class="add-button" id="addButton">
+                    <svg class="arrow-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="captured-section" id="capturedSection">
+            <div class="section-title hidden" id="sectionTitle">
+                Elementos Capturados (<span id="itemCount">0</span>)
+            </div>
+            <div class="items-list" id="itemsList"></div>
+        </div>
+    </div>
+    <div class="footer">
+        <button class="send-button" id="sendButton">
+            <svg class="send-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+            Enviar Captura
+        </button>
+    </div>
+
+    <script>
+        class CaptureApp {
+            constructor() {
+                this.capturedItems = [];
+                this.itemCounter = 0;
+                this.productData = []; // Combined data from productos and claves
+                this.isDataLoaded = false;
+                this.initializeElements();
+                this.loadData();
+            }
+
+            initializeElements() {
+                this.cbInput = document.getElementById('cbInput');
+                this.quantityInput = document.getElementById('quantityInput');
+                this.addButton = document.getElementById('addButton');
+                this.sendButton = document.getElementById('sendButton');
+                this.itemsList = document.getElementById('itemsList');
+                this.sectionTitle = document.getElementById('sectionTitle');
+                this.itemCount = document.getElementById('itemCount');
+                this.loadingSection = document.getElementById('loadingSection');
+                this.errorSection = document.getElementById('errorSection');
+                this.mainContent = document.getElementById('mainContent');
+                this.scanButton = document.getElementById('scanButton'); // Nuevo botón
+            }
+
+       async loadData() {
+    try {
+        const baseUrl = 'https://corsproxy.io/?';
+        const encodeUrl = (url) => baseUrl + encodeURIComponent(url);
+
+        const productosUrl = encodeUrl('http://amegremoto.ddns.net:8081/productos');
+        const clavesUrl = encodeUrl('http://amegremoto.ddns.net:8081/claves');
+
+        const [productosResponse, clavesResponse] = await Promise.all([
+            fetch(productosUrl),
+            fetch(clavesUrl)
+        ]);
+
+        if (!productosResponse.ok || !clavesResponse.ok) {
+            throw new Error('Error al cargar datos');
+        }
+
+        const productos = await productosResponse.json();
+        const claves = await clavesResponse.json();
+
+        this.productData = this.combineData(productos, claves);
+        this.isDataLoaded = true;
+        this.showMainContent();
+        this.bindEvents();
+        console.log('✅ Datos cargados correctamente');
+    } catch (error) {
+        console.error('❌ Error:', error);
+        this.showError();
+    }
+}
+
+            combineData(productos, claves) {
+                const combinedData = [];
+                const clavesMap = {};
+                claves.forEach(clave => {
+                    if (clave.cve_art) {
+                        clavesMap[clave.cve_art] = clave;
+                    }
+                });
+                productos.forEach(producto => {
+                    if (producto.cve_art && clavesMap[producto.cve_art]) {
+                        const clave = clavesMap[producto.cve_art];
+                        combinedData.push({
+                            cve_art: producto.cve_art,
+                            descr: producto.descr || 'Sin descripción',
+                            cve_alter: clave.cve_alter
+                        });
+                    }
+                });
+                return combinedData;
+            }
+
+            showMainContent() {
+                this.loadingSection.style.display = 'none';
+                this.errorSection.classList.add('hidden');
+                this.mainContent.style.display = 'block';
+            }
+
+            showError() {
+                this.loadingSection.style.display = 'none';
+                this.errorSection.classList.remove('hidden');
+                this.mainContent.style.display = 'none';
+            }
+
+            bindEvents() {
+                this.addButton.addEventListener('click', () => this.addCapture());
+                this.sendButton.addEventListener('click', () => this.sendCapture());
+                this.scanButton.addEventListener('click', () => this.startScan());
+                this.cbInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.quantityInput.focus();
+                    }
+                });
+                this.quantityInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.addCapture();
+                    }
+                });
+                this.quantityInput.addEventListener('input', (e) => {
+                    if (e.target.value.length > 4) {
+                        e.target.value = e.target.value.slice(0, 4);
+                    }
+                });
+            }
+
+            findProductByCveAlter(cveAlter) {
+                return this.productData.find(product => 
+                    product.cve_alter && product.cve_alter.toString() === cveAlter.toString()
+                );
+            }
+
+            addCapture() {
+                if (!this.isDataLoaded) {
+                    alert('Los datos aún se están cargando. Por favor espera.');
+                    return;
+                }
+                const cb = this.cbInput.value.trim();
+                const quantity = this.quantityInput.value.trim();
+                if (cb && quantity) {
+                    const product = this.findProductByCveAlter(cb);
+                    this.itemCounter++;
+                    const newItem = {
+                        id: Date.now(),
+                        number: this.itemCounter,
+                        cb: cb,
+                        quantity: quantity,
+                        product: product
+                    };
+                    this.capturedItems.unshift(newItem);
+                    this.renderItems();
+                    this.clearInputs();
+                    this.cbInput.focus();
+                }
+            }
+
+            renderItems() {
+                if (this.capturedItems.length === 0) {
+                    this.sectionTitle.classList.add('hidden');
+                    this.itemsList.innerHTML = '';
+                    return;
+                }
+                this.sectionTitle.classList.remove('hidden');
+                this.itemCount.textContent = this.capturedItems.length;
+                this.itemsList.innerHTML = this.capturedItems.map(item => {
+                    let displayText = item.cb;
+                    if (item.product) {
+                        displayText = `${item.cb} - ${item.product.descr}`;
+                    }
+                    return `
+                        <div class="item-card">
+                            <div class="item-content">
+                                <div class="item-left">
+                                    <div class="item-number">#${item.number}</div>
+                                    <div class="item-cb">
+                                        <div class="item-cb-label">CB:</div>
+                                        <div class="item-cb-value">${displayText}</div>
+                                    </div>
+                                </div>
+                                <div class="item-right">
+                                    <div class="item-quantity-label">Cantidad:</div>
+                                    <div class="item-quantity-value">${item.quantity}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            clearInputs() {
+                this.cbInput.value = '';
+                this.quantityInput.value = '';
+            }
+
+            async startScan() {
+                const html5QrCode = new Html5Qrcode("qr-reader");
+
+                const cameraId = await this.getCameraId().catch(err => {
+                    console.error("Error obteniendo cámara:", err);
+                    alert("No se pudo acceder a la cámara. Verifica los permisos.");
+                    return null;
+                });
+
+                if (!cameraId) return;
+
+                const scanningModal = this.createScanningModal();
+                document.body.appendChild(scanningModal);
+
+                html5QrCode.start(
+                    cameraId,
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 }
+                    },
+                    (decodedText) => {
+                        html5QrCode.stop().then(() => {
+                            document.body.removeChild(scanningModal);
+                            this.cbInput.value = decodedText.trim();
+                            this.cbInput.focus();
+                        }).catch(console.error);
+                    },
+                    (error) => {
+                        console.warn(`Error de escaneo: ${error}`);
+                    }
+                ).catch(err => {
+                    console.error("Error al iniciar cámara:", err);
+                    alert("No se pudo iniciar la cámara.");
+                    document.body.removeChild(scanningModal);
+                });
+            }
+
+            getCameraId() {
+                return Html5Qrcode.getCameras().then(devices => {
+                    if (devices && devices.length > 0) {
+                        return devices.length > 1 ? devices[1].id : devices[0].id;
+                    } else {
+                        throw new Error("No se encontró cámara");
+                    }
+                });
+            }
+
+            createScanningModal() {
+                const modal = document.createElement("div");
+                modal.id = "qr-reader";
+                modal.style.position = "fixed";
+                modal.style.top = "0";
+                modal.style.left = "0";
+                modal.style.width = "100%";
+                modal.style.height = "100%";
+                modal.style.backgroundColor = "rgba(0,0,0,0.9)";
+                modal.style.zIndex = "1000";
+                modal.style.display = "flex";
+                modal.style.flexDirection = "column";
+                modal.style.alignItems = "center";
+                modal.style.justifyContent = "center";
+                modal.style.color = "white";
+
+                const title = document.createElement("h3");
+                title.textContent = "Escanea el código";
+                title.style.marginBottom = "20px";
+
+                const closeButton = document.createElement("button");
+                closeButton.textContent = "Cancelar";
+                closeButton.style.marginTop = "20px";
+                closeButton.style.padding = "10px 20px";
+                closeButton.style.backgroundColor = "#f44336";
+                closeButton.style.color = "white";
+                closeButton.style.border = "none";
+                closeButton.style.borderRadius = "8px";
+                closeButton.style.cursor = "pointer";
+                closeButton.onclick = () => {
+                    Html5Qrcode.getCameras().then(devices => {
+                        if (devices.length > 0) {
+                            html5QrCode.stop().catch(() => {}).finally(() => {
+                                document.body.removeChild(modal);
+                            });
+                        } else {
+                            document.body.removeChild(modal);
+                        }
+                    }).catch(() => {
+                        document.body.removeChild(modal);
+                    });
+                };
+
+                modal.appendChild(title);
+                modal.appendChild(closeButton);
+
+                return modal;
+            }
+
+            sendCapture() {
+                if (this.capturedItems.length > 0) {
+                    alert(`Enviando ${this.capturedItems.length} elemento(s) capturados`);
+                    console.log('Datos a enviar:', this.capturedItems);
+                } else {
+                    alert('No hay elementos para enviar');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new CaptureApp();
+        });
+    </script>
+</body>
+</html>
